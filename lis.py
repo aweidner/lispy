@@ -7,7 +7,17 @@ Number = (int, float)
 Atom = (Symbol, Number)
 List = list
 Exp = (Atom, List)
-Env = dict
+
+
+class Env(dict):
+    " An environment: a dict of {'var': val) pairs, with an outer Env."
+
+    def __init__(self, params={}, args={}, outer=None):
+        self.update(zip(params, args))
+        self.outer = outer
+
+    def find(self, var):
+        return self if (var in self) else self.outer.find(var)
 
 
 def tokenize(chars: str) -> list:
@@ -86,23 +96,43 @@ def standard_env() -> Env:
 global_env = standard_env()
 
 
+class Procedure:
+    "A user-defined Scheme procedure."
+    def __init__(self, params, body, env):
+        self.params, self.body, self.env = params, body, env
+
+    def __call__(self, *args):
+        return eval(self.body, Env(self.params, args, self.env))
+
+
 def eval(x: Exp, env=global_env) -> Exp:
     """ Evaluate an expression in an environment """
     if isinstance(x, Symbol):
-        return env[x]
-    elif isinstance(x, Number):
+        return env.find(x)[x]
+    elif not isinstance(x, List):
         return x
-    elif x[0] == 'if':
-        (_, test, conseq, alt) = x
+
+    op, *args = x
+
+    if op == 'quote':
+        return args[0]
+    elif op == 'if':
+        (test, conseq, alt) = args
         exp = (conseq if eval(test, env) else alt)
         return eval(exp, env)
-    elif x[0] == 'define':
-        (_, symbol, exp) = x
+    elif op == 'define':
+        (symbol, exp) = args
         env[symbol] = eval(exp, env)
+    elif op == 'set!':
+        (symbol, exp) = args
+        env.find(symbol)[symbol] = eval(exp, env)
+    elif op == 'lambda':
+        (params, body) = args
+        return Procedure(params, body, env)
     else:
-        proc = eval(x[0], env)
-        args = [eval(arg, env) for arg in x[1:]]
-        return proc(*args)
+        proc = eval(op, env)
+        vals = [eval(arg, env) for arg in args]
+        return proc(*vals)
 
 
 def schemestr(exp):
