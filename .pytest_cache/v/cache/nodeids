@@ -1,5 +1,0 @@
-[
-  "test/test_lis.py::test_tokenize",
-  "test/test_lis.py::test_parse",
-  "test/test_lis.py::test_eval"
-]
